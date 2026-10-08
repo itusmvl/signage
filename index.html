@@ -502,7 +502,17 @@
       throw new Error(msg);
     }
     const data = await res.json();
-    const files = data.files || [];
+    let files = data.files || [];
+
+    // Optional ?screen=A : only files named "A_..." or "ALL_..." play on this screen.
+    const screen = (new URLSearchParams(window.location.search).get('screen') || '').trim().toLowerCase();
+    if(screen){
+      files = files.filter(f => {
+        const n = (f.name || '').toLowerCase();
+        return n.startsWith(screen + '_') || n.startsWith('all_');
+      });
+    }
+
     return files.map(f => ({
       id: 'drive-' + f.id,
       fileId: f.id,
