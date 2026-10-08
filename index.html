@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signage Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0a0d12;
+    --panel: #12161f;
+    --panel-2: #171d29;
+    --line: #232a38;
+    --text: #e7e9ee;
+    --muted: #6b7280;
+    --tally: #e8483a;
+    --tally-dim: #7a2b26;
+    --ok: #3aafa0;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'Inter', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);overflow:hidden;}
+  #root{position:relative;width:100vw;height:100vh;}
+
+  /* ---------- PLAYER ---------- */
+  #player{position:absolute;inset:0;background:#000;display:flex;align-items:center;justify-content:center;}
+  #player video{width:100%;height:100%;object-fit:cover;display:block;background:#000;}
+
+  .empty-state{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+    text-align:center;padding:40px;color:var(--muted);
+  }
+  .empty-state .rec{
+    width:10px;height:10px;border-radius:50%;background:var(--tally-dim);
+  }
+  .empty-state h1{font-family:var(--mono);font-size:15px;letter-spacing:.14em;text-transform:uppercase;color:var(--text);margin:0;}
+  .empty-state p{font-size:13px;margin:0;max-width:360px;line-height:1.6;}
+  .empty-state button{
+    margin-top:8px;background:var(--tally);color:#fff;border:none;padding:10px 20px;
+    border-radius:4px;font-family:var(--sans);font-weight:600;font-size:13px;cursor:pointer;
+  }
+  .empty-state button:hover{background:#f05a4c;}
+
+  /* corner HUD */
+  .hud{
+    position:absolute;bottom:0;left:0;right:0;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:10px 16px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;
+    color:rgba(231,233,238,.35);
+    pointer-events:none;
+    z-index:5;
+  }
+  .hud .chip{display:flex;align-items:center;gap:6px;}
+  .hud .dot{width:6px;height:6px;border-radius:50%;background:var(--tally);}
+
+  .ctrl-cluster{
+    position:absolute;top:16px;right:16px;display:flex;gap:8px;z-index:10;
+  }
+  .icon-btn{
+    width:34px;height:34px;border-radius:8px;border:1px solid rgba(231,233,238,.12);
+    background:rgba(10,13,18,.55);backdrop-filter:blur(6px);
+    color:rgba(231,233,238,.45);display:flex;align-items:center;justify-content:center;
+    cursor:pointer;transition:all .15s ease;
+  }
+  .icon-btn:hover{color:var(--text);border-color:rgba(231,233,238,.3);background:rgba(10,13,18,.8);}
+  .icon-btn svg{width:16px;height:16px;}
+
+  /* ---------- ADMIN ---------- */
+  #admin{position:absolute;inset:0;overflow-y:auto;background:var(--bg);display:none;}
+  #admin.show{display:block;}
+  .console{max-width:760px;margin:0 auto;padding:40px 24px 80px;}
+
+  .console-top{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:12px;}
+  .brand{font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:8px;}
+  .brand .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);}
+  h1.title{font-family:var(--sans);font-weight:800;font-size:28px;margin:6px 0 4px;letter-spacing:-.01em;}
+  .sub{color:var(--muted);font-size:14px;line-height:1.6;margin:0 0 28px;}
+
+  .back-btn{
+    display:inline-flex;align-items:center;gap:6px;background:none;border:1px solid var(--line);
+    color:var(--text);padding:8px 14px;border-radius:6px;font-family:var(--sans);font-size:13px;
+    cursor:pointer;font-weight:500;
+  }
+  .back-btn:hover{border-color:var(--tally);color:var(--tally);}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:22px;margin-bottom:20px;}
+  .panel h2{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 16px;font-weight:600;}
+
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:500;}
+  .field input{
+    width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;
+    padding:10px 12px;color:var(--text);font-family:var(--sans);font-size:14px;
+  }
+  .field input:focus{outline:none;border-color:var(--tally);}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media (max-width:560px){.row2{grid-template-columns:1fr;}}
+
+  .add-btn{
+    background:var(--tally);color:#fff;border:none;padding:11px 18px;border-radius:6px;
+    font-family:var(--sans);font-weight:600;font-size:13px;cursor:pointer;width:100%;
+  }
+  .add-btn:hover{background:#f05a4c;}
+  .add-btn:disabled{background:var(--line);color:var(--muted);cursor:not-allowed;}
+
+  .err{color:var(--tally);font-size:12px;margin-top:8px;}
+
+  .list{display:flex;flex-direction:column;gap:8px;}
+  .item{
+    display:flex;align-items:center;gap:12px;background:var(--panel-2);border:1px solid var(--line);
+    border-radius:8px;padding:10px 12px;
+  }
+  .item .idx{font-family:var(--mono);font-size:12px;color:var(--muted);width:22px;flex-shrink:0;}
+  .item .info{flex:1;min-width:0;}
+  .item .info .t{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .item .info .u{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--mono);}
+  .item .actions{display:flex;gap:4px;flex-shrink:0;}
+  .mini-btn{
+    width:28px;height:28px;border-radius:6px;border:1px solid var(--line);background:transparent;
+    color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;
+  }
+  .mini-btn:hover{color:var(--text);border-color:rgba(231,233,238,.35);}
+  .mini-btn.danger:hover{color:var(--tally);border-color:var(--tally);}
+  .mini-btn svg{width:14px;height:14px;}
+
+  .empty-list{color:var(--muted);font-size:13px;text-align:center;padding:24px 0;}
+
+  .note{
+    background:rgba(58,175,160,.08);border:1px solid rgba(58,175,160,.25);border-radius:8px;
+    padding:12px 14px;font-size:12.5px;color:#9fd6cd;line-height:1.6;margin-bottom:20px;
+  }
+  .note b{color:#c9ede8;}
+  .note code{background:rgba(0,0,0,.25);padding:1px 5px;border-radius:4px;font-family:var(--mono);font-size:11.5px;}
+
+  .save-status{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right;margin-top:6px;height:14px;}
+
+  /* ---------- SCHEDULE ---------- */
+  .sched-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-top:10px;}
+  @media (max-width:640px){.sched-row{grid-template-columns:1fr 1fr;}}
+  .sched-row .mini-field label{display:block;font-size:10.5px;color:var(--muted);margin-bottom:4px;}
+  .sched-row .mini-field input{
+    width:100%;background:var(--panel);border:1px solid var(--line);border-radius:5px;
+    padding:7px 8px;color:var(--text);font-family:var(--mono);font-size:12px;
+  }
+  .sched-row .mini-field input:focus{outline:none;border-color:var(--tally);}
+
+  .badge{
+    display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10.5px;
+    padding:2px 8px;border-radius:20px;letter-spacing:.04em;white-space:nowrap;
+  }
+  .badge.always{background:rgba(107,114,128,.15);color:var(--muted);}
+  .badge.active{background:rgba(58,175,160,.15);color:var(--ok);}
+  .badge.pending{background:rgba(232,159,58,.15);color:#e8a53a;}
+  .badge.expired{background:rgba(232,72,58,.15);color:var(--tally);}
+
+  .sched-toggle{
+    background:none;border:1px solid var(--line);color:var(--muted);border-radius:6px;
+    padding:6px 10px;font-size:11.5px;font-family:var(--sans);cursor:pointer;margin-top:8px;
+  }
+  .sched-toggle:hover{color:var(--text);border-color:rgba(231,233,238,.35);}
+
+  .sched-save-btn{
+    grid-column:1/-1;background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+    padding:7px 10px;border-radius:6px;font-size:12px;cursor:pointer;margin-top:2px;
+  }
+  .sched-save-btn:hover{border-color:var(--ok);color:var(--ok);}
+
+  .item{flex-wrap:wrap;}
+  .item .sched-panel{width:100%;display:none;}
+  .item .sched-panel.open{display:block;}
+
+  ::-webkit-scrollbar{width:10px;}
+  ::-webkit-scrollbar-track{background:var(--bg);}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:5px;}
+</style>
+</head>
+<body>
+<div id="root">
+
+  <!-- PLAYER -->
+  <div id="player">
+    <div id="videoWrap"></div>
+    <div class="hud">
+      <div class="chip"><span class="dot"></span><span id="hudLabel">SIGNAGE · STANDBY</span></div>
+      <div class="chip" id="hudClock">--:--:--</div>
+    </div>
+    <div class="ctrl-cluster">
+      <button class="icon-btn" id="muteBtn" title="เปิด/ปิดเสียง">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+      </button>
+      <button class="icon-btn" id="fsBtn" title="เต็มจอ">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+      </button>
+      <button class="icon-btn" id="gearBtn" title="ตั้งค่า">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ADMIN -->
+  <div id="admin">
+    <div class="console">
+      <div class="console-top">
+        <div class="brand"><span class="dot"></span>SIGNAGE CONSOLE</div>
+        <button class="back-btn" id="backBtn">← กลับไปเล่นวิดีโอ</button>
+      </div>
+      <h1 class="title">จัดการเพลย์ลิสต์</h1>
+      <p class="sub">ตั้งค่าโฟลเดอร์ Google Drive ครั้งเดียวด้านล่าง แล้วแค่อัปโหลดไฟล์ .mp4 ใหม่เข้าโฟลเดอร์นั้น — จอทุกเครื่องจะเล่นให้เองอัตโนมัติ โดยไม่ต้องกลับมาแก้ลิงก์ทุกครั้ง</p>
+
+      <div class="note" id="storageModeNote" style="display:none;"></div>
+
+      <div class="note">
+        <b>ข้อจำกัดสำคัญ:</b> หน้านี้เก็บได้เฉพาะ "ลิงก์" วิดีโอ ไม่สามารถอัปโหลดไฟล์วิดีโอจากเครื่องมาฝากไว้ในนี้ได้โดยตรง
+        แนะนำให้ใช้ตัวซิงก์อัตโนมัติจากโฟลเดอร์ Google Drive ด้านล่าง (ตั้งครั้งเดียว ไม่ต้องแก้ลิงก์อีก) หรือถ้าต้องการใช้ที่เก็บไฟล์อื่น
+        (Dropbox, S3/R2/GCS, CDN) ก็เพิ่มลิงก์ตรงแบบ manual ได้ในหัวข้อถัดไป ไฟล์ควรเป็น <code>.mp4</code> เพื่อให้เล่นได้ในเบราว์เซอร์ทั่วไป
+      </div>
+
+      <div class="panel" id="drivePanel">
+        <h2>ซิงก์อัตโนมัติจากโฟลเดอร์ Google Drive</h2>
+        <p class="sub" style="margin-bottom:16px;font-size:13px;">
+          ตั้งค่าครั้งเดียว จากนั้น "เครื่องลูก" ทุกจอจะเห็นวิดีโอใหม่เองทันทีที่คุณอัปโหลดไฟล์เพิ่มลงโฟลเดอร์นี้ — ไม่ต้องกลับมาแก้ลิงก์อีกเลย
+        </p>
+        <details style="margin-bottom:16px;">
+          <summary style="cursor:pointer;font-size:13px;color:var(--ok);font-weight:600;">วิธีตั้งค่า (ทำครั้งเดียว)</summary>
+          <ol style="font-size:12.5px;color:var(--muted);line-height:1.9;padding-left:20px;margin:10px 0 0;">
+            <li>สร้างโฟลเดอร์ใน Google Drive ไว้เก็บวิดีโอ signage โดยเฉพาะ แล้วคลิกขวา → แชร์ → เปลี่ยนเป็น <b style="color:var(--text)">"ทุกคนที่มีลิงก์" (ผู้ดู)</b></li>
+            <li>เปิดโฟลเดอร์นั้น คัดลอก <b style="color:var(--text)">Folder ID</b> จาก URL เช่น <code>drive.google.com/drive/folders/<b style="color:var(--text)">1AbCxyz...</b></code> — เอาส่วนหลัง <code>/folders/</code> มา</li>
+            <li>ไปที่ <a href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank" style="color:var(--ok);">Google Cloud Console</a> → เปิดใช้งาน "Google Drive API" ในโปรเจกต์ (สร้างโปรเจกต์ใหม่ได้ฟรี)</li>
+            <li>ไปที่ APIs & Services → Credentials → Create Credentials → <b style="color:var(--text)">API key</b> คัดลอกคีย์ที่ได้ แล้วกด "Restrict key" จำกัดให้ใช้ได้เฉพาะ Google Drive API เพื่อความปลอดภัย</li>
+            <li>วาง Folder ID และ API key ด้านล่าง แล้วกดบันทึก</li>
+            <li>ตั้งแต่นี้ไป แค่ลากไฟล์ <code>.mp4</code> ใหม่ใส่โฟลเดอร์นั้น (จะตั้งชื่อไฟล์ให้ขึ้นต้นด้วยเลข เช่น <code>01_intro.mp4</code>, <code>02_promo.mp4</code> เพื่อคุมลำดับการเล่น) จอทุกจอจะเล่นไฟล์ใหม่ให้เองภายในไม่กี่วินาที ลบไฟล์ออกจากโฟลเดอร์ก็หายจากคิวเช่นกัน</li>
+          </ol>
+        </details>
+        <div class="row2">
+          <div class="field">
+            <label>Google Drive Folder ID</label>
+            <input type="text" id="folderIdInput" placeholder="เช่น 1AbCxyz...">
+          </div>
+          <div class="field">
+            <label>Google API Key</label>
+            <input type="text" id="apiKeyInput" placeholder="AIzaSy...">
+          </div>
+        </div>
+        <button class="add-btn" id="saveDriveBtn">บันทึกและซิงก์</button>
+        <div class="err" id="driveErr" style="display:none;"></div>
+        <div class="save-status" id="driveStatus"></div>
+      </div>
+
+      <div class="panel">
+        <h2>เพิ่มลิงก์วิดีโอเพิ่มเติม (ไม่บังคับ)</h2>
+        <div class="row2">
+          <div class="field">
+            <label>ชื่อรายการ (ไม่บังคับ)</label>
+            <input type="text" id="titleInput" placeholder="เช่น โปรโมชั่นเดือนนี้">
+          </div>
+          <div class="field">
+            <label>ลิงก์วิดีโอ (URL) *</label>
+            <input type="text" id="urlInput" placeholder="https://.../video.mp4">
+          </div>
+        </div>
+        <p class="sub" style="margin:0 0 4px;font-size:12px;">กำหนดการเล่น (ไม่บังคับ — เว้นว่างไว้ = เล่นตลอดเวลา)</p>
+        <div class="sched-row">
+          <div class="mini-field"><label>เล่นตั้งแต่วันที่</label><input type="date" id="newStartDate"></div>
+          <div class="mini-field"><label>ถึงวันที่</label><input type="date" id="newEndDate"></div>
+          <div class="mini-field"><label>เล่นตั้งแต่เวลา</label><input type="time" id="newStartTime"></div>
+          <div class="mini-field"><label>ถึงเวลา</label><input type="time" id="newEndTime"></div>
+        </div>
+        <button class="add-btn" id="addBtn" style="margin-top:14px;">+ เพิ่มเข้าเพลย์ลิสต์</button>
+        <div class="err" id="errMsg" style="display:none;"></div>
+      </div>
+
+      <div class="panel">
+        <h2>ลำดับการเล่น (<span id="countLabel">0</span> รายการ)</h2>
+        <div class="list" id="listWrap"></div>
+        <div class="empty-list" id="emptyListMsg" style="display:none;">ยังไม่มีวิดีโอในเพลย์ลิสต์ — เพิ่มด้านบนเพื่อเริ่มต้น</div>
+        <div class="save-status" id="saveStatus"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  const STORAGE_KEY = 'playlist';
+  const DRIVE_CONFIG_KEY = 'driveConfig';
+  const DRIVE_SCHEDULES_KEY = 'driveSchedules';
+  const POLL_MS = 12000;
+  const SCHEDULE_CHECK_MS = 20000;
+
+  let playlist = [];        // manual entries (shared) — each: {id,title,url,schedule}
+  let driveItems = [];      // auto-detected from Drive folder (fetched live, not persisted)
+  let driveConfig = null;   // { folderId, apiKey }
+  let driveSchedules = {};  // { [googleFileId]: schedule } shared
+  let currentIndex = 0;
+  let mode = 'player'; // 'player' | 'admin'
+  let muted = true;
+
+  const els = {
+    videoWrap: document.getElementById('videoWrap'),
+    hudLabel: document.getElementById('hudLabel'),
+    hudClock: document.getElementById('hudClock'),
+    muteBtn: document.getElementById('muteBtn'),
+    fsBtn: document.getElementById('fsBtn'),
+    gearBtn: document.getElementById('gearBtn'),
+    player: document.getElementById('player'),
+    admin: document.getElementById('admin'),
+    backBtn: document.getElementById('backBtn'),
+    titleInput: document.getElementById('titleInput'),
+    urlInput: document.getElementById('urlInput'),
+    addBtn: document.getElementById('addBtn'),
+    errMsg: document.getElementById('errMsg'),
+    listWrap: document.getElementById('listWrap'),
+    emptyListMsg: document.getElementById('emptyListMsg'),
+    countLabel: document.getElementById('countLabel'),
+    saveStatus: document.getElementById('saveStatus'),
+    folderIdInput: document.getElementById('folderIdInput'),
+    apiKeyInput: document.getElementById('apiKeyInput'),
+    saveDriveBtn: document.getElementById('saveDriveBtn'),
+    driveErr: document.getElementById('driveErr'),
+    driveStatus: document.getElementById('driveStatus'),
+    newStartDate: document.getElementById('newStartDate'),
+    newEndDate: document.getElementById('newEndDate'),
+    newStartTime: document.getElementById('newStartTime'),
+    newEndTime: document.getElementById('newEndTime'),
+  };
+
+  function combinedPlaylist(){
+    return allItems().filter(it => isActiveNow(it.schedule));
+  }
+
+  // ---------- STORAGE ABSTRACTION ----------
+  // window.storage only exists when this page is rendered inside a claude.ai Artifact.
+  // When hosted as a normal static site (GitHub Pages, Netlify, etc.) it's undefined,
+  // so we fall back to localStorage (per-device only — not synced across screens).
+  const hasBridgeStorage = !!(window.storage && typeof window.storage.get === 'function');
+  let usingFallbackStorage = !hasBridgeStorage;
+
+  async function storeGet(key, shared){
+    if(hasBridgeStorage){
+      try{ return await window.storage.get(key, shared); }catch(e){ return null; }
+    }
+    try{
+      const raw = localStorage.getItem('signage_' + key);
+      return raw ? { key, value: raw, shared } : null;
+    }catch(e){ return null; }
+  }
+
+  async function storeSet(key, value, shared){
+    if(hasBridgeStorage){
+      try{ return await window.storage.set(key, value, shared); }catch(e){ return null; }
+    }
+    try{
+      localStorage.setItem('signage_' + key, value);
+      return { key, value, shared };
+    }catch(e){ return null; }
+  }
+
+  // Optional ?folder=...&key=... in the URL — lets every kiosk link carry its own
+  // Drive config with zero dependency on shared storage. URL always wins if present.
+  function getUrlDriveConfig(){
+    const params = new URLSearchParams(window.location.search);
+    const folderId = params.get('folder');
+    const apiKey = params.get('key');
+    if(folderId && apiKey) return { folderId, apiKey };
+    return null;
+  }
+
+  function allItems(){
+    return driveItems.concat(playlist);
+  }
+
+  function pad2(n){ return String(n).padStart(2,'0'); }
+  function localDateStr(d){ return d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate()); }
+  function localTimeStr(d){ return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
+
+  // Decide whether an item should be in rotation right now, based on its
+  // optional {startDate, endDate, startTime, endTime}. Any empty field = no restriction on that axis.
+  function isActiveNow(schedule){
+    if(!schedule) return true;
+    const now = new Date();
+    const today = localDateStr(now);
+    const time = localTimeStr(now);
+
+    if(schedule.startDate && today < schedule.startDate) return false;
+    if(schedule.endDate && today > schedule.endDate) return false;
+
+    if(schedule.startTime && schedule.endTime){
+      if(schedule.startTime <= schedule.endTime){
+        if(time < schedule.startTime || time > schedule.endTime) return false;
+      } else {
+        // overnight window, e.g. 22:00 - 02:00
+        if(time < schedule.startTime && time > schedule.endTime) return false;
+      }
+    } else if(schedule.startTime && time < schedule.startTime){
+      return false;
+    } else if(schedule.endTime && time > schedule.endTime){
+      return false;
+    }
+    return true;
+  }
+
+  // Human-readable status for the admin list: 'always' | 'active' | 'pending' | 'expired'
+  function scheduleStatus(schedule){
+    if(!schedule || (!schedule.startDate && !schedule.endDate && !schedule.startTime && !schedule.endTime)){
+      return 'always';
+    }
+    const now = new Date();
+    const today = localDateStr(now);
+    if(schedule.endDate && today > schedule.endDate) return 'expired';
+    if(schedule.startDate && today < schedule.startDate) return 'pending';
+    return isActiveNow(schedule) ? 'active' : 'pending';
+  }
+
+  function scheduleLabel(status){
+    return { always:'เล่นตลอดเวลา', active:'กำลังเล่นได้', pending:'ยังไม่ถึงเวลา', expired:'หมดเขตแล้ว' }[status] || 'เล่นตลอดเวลา';
+  }
+
+  function scheduleSummary(schedule){
+    if(!schedule) return '';
+    const parts = [];
+    if(schedule.startDate || schedule.endDate){
+      parts.push(`${schedule.startDate || '…'} → ${schedule.endDate || '…'}`);
+    }
+    if(schedule.startTime || schedule.endTime){
+      parts.push(`${schedule.startTime || '00:00'}-${schedule.endTime || '23:59'} น.`);
+    }
+    return parts.join(' · ');
+  }
+
+  function uid(){ return Math.random().toString(36).slice(2,9); }
+
+  function tickClock(){
+    const now = new Date();
+    els.hudClock.textContent = now.toLocaleTimeString('th-TH',{hour12:false});
+  }
+  setInterval(tickClock, 1000); tickClock();
+
+  async function loadPlaylist(){
+    try{
+      const res = await storeGet(STORAGE_KEY, true);
+      if(res && res.value){
+        const parsed = JSON.parse(res.value);
+        if(Array.isArray(parsed)) return parsed;
+      }
+    }catch(e){ /* key doesn't exist yet */ }
+    return [];
+  }
+
+  async function savePlaylist(list){
+    try{
+      await storeSet(STORAGE_KEY, JSON.stringify(list), true);
+      els.saveStatus.textContent = 'บันทึกแล้ว · ' + new Date().toLocaleTimeString('th-TH',{hour12:false});
+    }catch(e){
+      els.saveStatus.textContent = 'บันทึกไม่สำเร็จ ลองอีกครั้ง';
+    }
+  }
+
+  async function loadDriveConfig(){
+    try{
+      const res = await storeGet(DRIVE_CONFIG_KEY, true);
+      if(res && res.value){
+        const parsed = JSON.parse(res.value);
+        if(parsed && parsed.folderId && parsed.apiKey) return parsed;
+      }
+    }catch(e){ /* not set yet */ }
+    return null;
+  }
+
+  async function saveDriveConfig(cfg){
+    await storeSet(DRIVE_CONFIG_KEY, JSON.stringify(cfg), true);
+  }
+
+  async function loadDriveSchedules(){
+    try{
+      const res = await storeGet(DRIVE_SCHEDULES_KEY, true);
+      if(res && res.value){
+        const parsed = JSON.parse(res.value);
+        if(parsed && typeof parsed === 'object') return parsed;
+      }
+    }catch(e){ /* not set yet */ }
+    return {};
+  }
+
+  async function saveDriveSchedules(obj){
+    driveSchedules = obj;
+    await storeSet(DRIVE_SCHEDULES_KEY, JSON.stringify(obj), true);
+  }
+
+  // Fetch the current list of video files inside a public Google Drive folder,
+  // sorted by filename (so prefixing files with 01_, 02_... controls play order).
+  async function fetchDriveItems(cfg){
+    if(!cfg || !cfg.folderId || !cfg.apiKey) return [];
+    const q = encodeURIComponent(`'${cfg.folderId}' in parents and trashed=false and mimeType contains 'video/'`);
+    const url = `https://www.googleapis.com/drive/v3/files?q=${q}&orderBy=name&fields=files(id,name)&pageSize=200&key=${encodeURIComponent(cfg.apiKey)}`;
+    const res = await fetch(url);
+    if(!res.ok){
+      const body = await res.json().catch(()=>({}));
+      const msg = (body && body.error && body.error.message) || `HTTP ${res.status}`;
+      throw new Error(msg);
+    }
+    const data = await res.json();
+    const files = data.files || [];
+    return files.map(f => ({
+      id: 'drive-' + f.id,
+      fileId: f.id,
+      title: f.name,
+      url: `https://www.googleapis.com/drive/v3/files/${f.id}?alt=media&key=${encodeURIComponent(cfg.apiKey)}`,
+      schedule: driveSchedules[f.id] || {}
+    }));
+  }
+
+  async function refreshDriveItems(showErrors){
+    if(!driveConfig) { driveItems = []; return; }
+    try{
+      driveItems = await fetchDriveItems(driveConfig);
+      if(mode === 'admin'){
+        els.driveStatus.textContent = `พบวิดีโอ ${driveItems.length} ไฟล์ · ซิงก์ล่าสุด ${new Date().toLocaleTimeString('th-TH',{hour12:false})}`;
+        els.driveErr.style.display = 'none';
+      }
+    }catch(e){
+      if(showErrors && mode === 'admin'){
+        els.driveErr.textContent = 'ซิงก์ไม่สำเร็จ: ' + e.message + ' — ตรวจสอบ Folder ID, API key, และสิทธิ์แชร์โฟลเดอร์';
+        els.driveErr.style.display = 'block';
+      }
+    }
+  }
+
+  // ---------- PLAYER ----------
+  let playToken = 0;       // guards against stale async loads racing a newer renderPlayer() call
+  let currentBlobUrl = null;
+
+  async function renderPlayer(){
+    const myToken = ++playToken;
+    els.videoWrap.innerHTML = '';
+    const list = combinedPlaylist();
+
+    if(currentBlobUrl){ URL.revokeObjectURL(currentBlobUrl); currentBlobUrl = null; }
+
+    if(!list.length){
+      els.hudLabel.textContent = 'SIGNAGE · STANDBY';
+      els.videoWrap.innerHTML = `
+        <div class="empty-state">
+          <div class="rec"></div>
+          <h1>ยังไม่มีวิดีโอในเพลย์ลิสต์</h1>
+          <p>กดไอคอนเฟือง (มุมขวาบน) เพื่อตั้งค่าโฟลเดอร์ Google Drive หรือเพิ่มลิงก์วิดีโอ เมื่อเพิ่มแล้วหน้าจอนี้จะเริ่มเล่นอัตโนมัติ</p>
+          <button id="goAdminFromEmpty">เปิดหน้าตั้งค่า</button>
+        </div>`;
+      document.getElementById('goAdminFromEmpty').onclick = () => setMode('admin');
+      return;
+    }
+    if(currentIndex >= list.length) currentIndex = 0;
+    const item = list[currentIndex];
+    const isDrive = item.id && item.id.startsWith('drive-');
+    els.hudLabel.textContent = `SIGNAGE · ${isDrive ? 'LOADING…' : 'ON AIR'} · ${currentIndex+1}/${list.length}${item.title ? ' · ' + item.title : ''}`;
+
+    let src = item.url;
+
+    // Google Drive's media endpoint gets blocked by browser Opaque Response Blocking
+    // when used directly as a <video src>. Fetching it as a blob first avoids that.
+    if(isDrive){
+      try{
+        const res = await fetch(item.url, { mode: 'cors' });
+        if(!res.ok) throw new Error('HTTP ' + res.status);
+        const blob = await res.blob();
+        if(myToken !== playToken) return; // a newer render call has since taken over
+        src = URL.createObjectURL(blob);
+        currentBlobUrl = src;
+      }catch(e){
+        if(myToken !== playToken) return;
+        setTimeout(() => {
+          if(myToken !== playToken) return;
+          const l = combinedPlaylist();
+          if(l.length) currentIndex = (currentIndex + 1) % l.length;
+          renderPlayer();
+        }, 3000);
+        return;
+      }
+    }
+
+    if(myToken !== playToken) return;
+    els.hudLabel.textContent = `SIGNAGE · ON AIR · ${currentIndex+1}/${list.length}${item.title ? ' · ' + item.title : ''}`;
+
+    const video = document.createElement('video');
+    video.src = src;
+    video.autoplay = true;
+    video.muted = muted;
+    video.playsInline = true;
+    video.setAttribute('webkit-playsinline','true');
+    video.onended = () => {
+      currentIndex = (currentIndex + 1) % combinedPlaylist().length;
+      renderPlayer();
+    };
+    video.onerror = () => {
+      // skip broken video after a short delay to avoid a fast infinite loop
+      setTimeout(() => {
+        if(myToken !== playToken) return;
+        const l = combinedPlaylist();
+        if(l.length) currentIndex = (currentIndex + 1) % l.length;
+        renderPlayer();
+      }, 3000);
+    };
+    els.videoWrap.appendChild(video);
+    video.play().catch(()=>{ /* autoplay may need muted; already muted by default */ });
+  }
+
+  els.muteBtn.onclick = () => {
+    muted = !muted;
+    const v = els.videoWrap.querySelector('video');
+    if(v) v.muted = muted;
+    els.muteBtn.style.color = muted ? '' : 'var(--ok)';
+  };
+
+  els.fsBtn.onclick = () => {
+    const el = document.documentElement;
+    if(!document.fullscreenElement){
+      (el.requestFullscreen || el.webkitRequestFullscreen || function(){}).call(el);
+    } else {
+      (document.exitFullscreen || document.webkitExitFullscreen || function(){}).call(document);
+    }
+  };
+
+  els.gearBtn.onclick = () => setMode('admin');
+  els.backBtn.onclick = () => setMode('player');
+
+  // ---------- ADMIN ----------
+  function renderAdmin(){
+    // populate drive config fields (without clobbering while user is typing)
+    if(driveConfig){
+      if(document.activeElement !== els.folderIdInput) els.folderIdInput.value = driveConfig.folderId;
+      if(document.activeElement !== els.apiKeyInput) els.apiKeyInput.value = driveConfig.apiKey;
+      if(!els.driveStatus.textContent){
+        els.driveStatus.textContent = `พบวิดีโอ ${driveItems.length} ไฟล์จากโฟลเดอร์`;
+      }
+    }
+
+    const total = driveItems.length + playlist.length;
+    els.countLabel.textContent = total;
+    els.listWrap.innerHTML = '';
+    els.emptyListMsg.style.display = total ? 'none' : 'block';
+
+    function schedFieldsHtml(prefix, schedule){
+      const s = schedule || {};
+      return `
+        <div class="sched-row">
+          <div class="mini-field"><label>ตั้งแต่วันที่</label><input type="date" data-f="startDate" data-p="${prefix}" value="${s.startDate || ''}"></div>
+          <div class="mini-field"><label>ถึงวันที่</label><input type="date" data-f="endDate" data-p="${prefix}" value="${s.endDate || ''}"></div>
+          <div class="mini-field"><label>ตั้งแต่เวลา</label><input type="time" data-f="startTime" data-p="${prefix}" value="${s.startTime || ''}"></div>
+          <div class="mini-field"><label>ถึงเวลา</label><input type="time" data-f="endTime" data-p="${prefix}" value="${s.endTime || ''}"></div>
+          <button class="sched-save-btn" data-act="savesched" data-p="${prefix}">บันทึกกำหนดการ</button>
+        </div>`;
+    }
+
+    // Drive-detected items: title/url read-only, schedule editable (stored per Drive file id)
+    driveItems.forEach((item, i) => {
+      const status = scheduleStatus(item.schedule);
+      const row = document.createElement('div');
+      row.className = 'item';
+      row.innerHTML = `
+        <div class="idx">${String(i+1).padStart(2,'0')}</div>
+        <div class="info">
+          <div class="t">☁ ${escapeHtml(item.title)} <span class="badge ${status}">${scheduleLabel(status)}</span></div>
+          <div class="u">อัตโนมัติจาก Google Drive${scheduleSummary(item.schedule) ? ' · ' + escapeHtml(scheduleSummary(item.schedule)) : ''}</div>
+        </div>
+        <div class="actions">
+          <button class="sched-toggle" data-act="toggle" data-p="drive:${item.fileId}">กำหนดการ</button>
+        </div>
+        <div class="sched-panel" data-panel="drive:${item.fileId}">${schedFieldsHtml('drive:' + item.fileId, item.schedule)}</div>`;
+      els.listWrap.appendChild(row);
+    });
+
+    // Manually-added items: fully editable
+    playlist.forEach((item, i) => {
+      const status = scheduleStatus(item.schedule);
+      const row = document.createElement('div');
+      row.className = 'item';
+      row.innerHTML = `
+        <div class="idx">${String(driveItems.length + i+1).padStart(2,'0')}</div>
+        <div class="info">
+          <div class="t">${escapeHtml(item.title || '(ไม่มีชื่อ)')} <span class="badge ${status}">${scheduleLabel(status)}</span></div>
+          <div class="u">${escapeHtml(item.url)}${scheduleSummary(item.schedule) ? ' · ' + escapeHtml(scheduleSummary(item.schedule)) : ''}</div>
+        </div>
+        <div class="actions">
+          <button class="sched-toggle" data-act="toggle" data-p="manual:${item.id}">กำหนดการ</button>
+          <button class="mini-btn" data-act="up" data-i="${i}" title="เลื่อนขึ้น">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+          </button>
+          <button class="mini-btn" data-act="down" data-i="${i}" title="เลื่อนลง">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <button class="mini-btn danger" data-act="del" data-i="${i}" title="ลบ">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>
+          </button>
+        </div>
+        <div class="sched-panel" data-panel="manual:${item.id}">${schedFieldsHtml('manual:' + item.id, item.schedule)}</div>`;
+      els.listWrap.appendChild(row);
+    });
+
+    els.listWrap.querySelectorAll('[data-act="toggle"]').forEach(btn => {
+      btn.onclick = () => {
+        const p = btn.dataset.p;
+        const panel = els.listWrap.querySelector(`.sched-panel[data-panel="${cssEscape(p)}"]`);
+        if(panel) panel.classList.toggle('open');
+      };
+    });
+
+    els.listWrap.querySelectorAll('[data-act="savesched"]').forEach(btn => {
+      btn.onclick = async () => {
+        const prefix = btn.dataset.p; // "drive:<fileId>" or "manual:<itemId>"
+        const [kind, refId] = prefix.split(/:(.+)/);
+        const panel = els.listWrap.querySelector(`.sched-panel[data-panel="${cssEscape(prefix)}"]`);
+        const schedule = {};
+        panel.querySelectorAll('input[data-f]').forEach(inp => {
+          if(inp.value) schedule[inp.dataset.f] = inp.value;
+        });
+        if(kind === 'drive'){
+          const next = Object.assign({}, driveSchedules);
+          if(Object.keys(schedule).length) next[refId] = schedule; else delete next[refId];
+          await saveDriveSchedules(next);
+          const di = driveItems.find(d => d.fileId === refId);
+          if(di) di.schedule = schedule;
+        } else {
+          const it = playlist.find(p => p.id === refId);
+          if(it){ it.schedule = schedule; await savePlaylist(playlist); }
+        }
+        renderAdmin();
+      };
+    });
+
+    els.listWrap.querySelectorAll('.mini-btn').forEach(btn => {
+      btn.onclick = async () => {
+        const i = parseInt(btn.dataset.i, 10);
+        const act = btn.dataset.act;
+        if(act === 'up' && i > 0){
+          [playlist[i-1], playlist[i]] = [playlist[i], playlist[i-1]];
+        } else if(act === 'down' && i < playlist.length - 1){
+          [playlist[i+1], playlist[i]] = [playlist[i], playlist[i+1]];
+        } else if(act === 'del'){
+          playlist.splice(i, 1);
+        }
+        await savePlaylist(playlist);
+        renderAdmin();
+      };
+    });
+  }
+
+  function cssEscape(s){
+    return (window.CSS && CSS.escape) ? CSS.escape(s) : s.replace(/[^a-zA-Z0-9_-]/g, '\\$&');
+  }
+
+  function escapeHtml(s){
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function isLikelyVideoUrl(u){
+    try{ new URL(u); }catch(e){ return false; }
+    return true;
+  }
+
+  els.addBtn.onclick = async () => {
+    const title = els.titleInput.value.trim();
+    const url = els.urlInput.value.trim();
+    els.errMsg.style.display = 'none';
+    if(!url || !isLikelyVideoUrl(url)){
+      els.errMsg.textContent = 'กรุณาใส่ URL วิดีโอที่ถูกต้อง (ต้องขึ้นต้นด้วย http:// หรือ https://)';
+      els.errMsg.style.display = 'block';
+      return;
+    }
+    const schedule = {};
+    if(els.newStartDate.value) schedule.startDate = els.newStartDate.value;
+    if(els.newEndDate.value) schedule.endDate = els.newEndDate.value;
+    if(els.newStartTime.value) schedule.startTime = els.newStartTime.value;
+    if(els.newEndTime.value) schedule.endTime = els.newEndTime.value;
+
+    playlist.push({ id: uid(), title, url, schedule });
+    els.titleInput.value = '';
+    els.urlInput.value = '';
+    els.newStartDate.value = '';
+    els.newEndDate.value = '';
+    els.newStartTime.value = '';
+    els.newEndTime.value = '';
+    await savePlaylist(playlist);
+    renderAdmin();
+  };
+
+  els.saveDriveBtn.onclick = async () => {
+    const folderId = els.folderIdInput.value.trim();
+    const apiKey = els.apiKeyInput.value.trim();
+    els.driveErr.style.display = 'none';
+    if(!folderId || !apiKey){
+      els.driveErr.textContent = 'กรุณากรอกทั้ง Folder ID และ API key';
+      els.driveErr.style.display = 'block';
+      return;
+    }
+    els.driveStatus.textContent = 'กำลังซิงก์...';
+    const cfg = { folderId, apiKey };
+    await saveDriveConfig(cfg);
+    driveConfig = cfg;
+    await refreshDriveItems(true);
+    renderAdmin();
+  };
+
+  // ---------- MODE SWITCH ----------
+  function setMode(next){
+    mode = next;
+    if(mode === 'admin'){
+      els.admin.classList.add('show');
+      els.driveStatus.textContent = '';
+      const noteEl = document.getElementById('storageModeNote');
+      if(usingFallbackStorage){
+        noteEl.style.display = 'block';
+        noteEl.innerHTML = '<b>โหมด local:</b> หน้านี้ไม่ได้เปิดผ่าน claude.ai จึงเก็บเพลย์ลิสต์/กำหนดการแบบ per-device (เบราว์เซอร์นี้เท่านั้น ไม่ซิงก์ข้ามจอ) — ' +
+          'สำหรับ Folder ID/API key แนะนำใส่ผ่าน URL แบบ <code>?folder=FOLDER_ID&key=API_KEY</code> ต่อท้ายลิงก์ที่ใช้เปิดจอลูกแทน จะได้ไม่ต้องพึ่ง storage เลย';
+      } else {
+        noteEl.style.display = 'none';
+      }
+      loadDriveSchedules().then(s => { driveSchedules = s; return refreshDriveItems(true); }).then(renderAdmin);
+      renderAdmin();
+    } else {
+      els.admin.classList.remove('show');
+      currentIndex = 0;
+      renderPlayer();
+    }
+  }
+
+  // ---------- INIT + POLLING ----------
+  async function init(){
+    playlist = await loadPlaylist();
+    driveConfig = await loadDriveConfig();
+    driveSchedules = await loadDriveSchedules();
+
+    // A ?folder=...&key=... in the URL always takes priority — lets a kiosk link be
+    // fully self-configuring even with no shared storage available.
+    const urlCfg = getUrlDriveConfig();
+    if(urlCfg && (!driveConfig || urlCfg.folderId !== driveConfig.folderId || urlCfg.apiKey !== driveConfig.apiKey)){
+      driveConfig = urlCfg;
+      await saveDriveConfig(urlCfg);
+    }
+
+    await refreshDriveItems(false);
+    renderPlayer();
+
+    setInterval(async () => {
+      if(mode !== 'player') return; // don't disrupt admin while editing
+      const freshPlaylist = await loadPlaylist();
+      const freshDriveConfig = await loadDriveConfig();
+      const freshDriveSchedules = await loadDriveSchedules();
+      let changed = false;
+      if(JSON.stringify(freshPlaylist) !== JSON.stringify(playlist)){
+        playlist = freshPlaylist;
+        changed = true;
+      }
+      if(JSON.stringify(freshDriveConfig) !== JSON.stringify(driveConfig)){
+        driveConfig = freshDriveConfig;
+        changed = true;
+      }
+      if(JSON.stringify(freshDriveSchedules) !== JSON.stringify(driveSchedules)){
+        driveSchedules = freshDriveSchedules;
+        changed = true;
+      }
+      const prevDriveItems = JSON.stringify(driveItems);
+      await refreshDriveItems(false);
+      if(JSON.stringify(driveItems) !== prevDriveItems) changed = true;
+
+      if(changed){
+        currentIndex = 0;
+        renderPlayer();
+      }
+    }, POLL_MS);
+
+    // Separate lightweight timer: re-evaluate which items are "active now" so that
+    // a scheduled start/end time takes effect without waiting for underlying data to change.
+    let lastActiveIds = JSON.stringify(combinedPlaylist().map(i => i.id));
+    setInterval(() => {
+      if(mode !== 'player') return;
+      const nowActiveIds = JSON.stringify(combinedPlaylist().map(i => i.id));
+      if(nowActiveIds !== lastActiveIds){
+        lastActiveIds = nowActiveIds;
+        currentIndex = 0;
+        renderPlayer();
+      }
+    }, SCHEDULE_CHECK_MS);
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
